@@ -46,40 +46,6 @@ Window {
                 }
             }
         }
-
-        Rectangle {
-            id: resizeHandle
-            width: 10
-            height: 10
-            color: "gray"
-            radius: 5
-            anchors.right: parent.right
-            anchors.bottom: parent.bottom
-
-            MouseArea {
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.SizeFDiagCursor
-
-                onPressed: {
-                    isResizing = true
-                    startPos = Qt.point(mouseX, mouseY)
-                }
-
-                onPositionChanged: {
-                    if (isResizing) {
-                        var delta = Qt.point(mouse.x - startPos.x, mouse.y - startPos.y)
-                        var newWidth = mainWindow.width + delta.x
-                        mainWindow.width = Math.max(100, newWidth)
-                        mainWindow.height = mainWindow.width / aspectRatio
-                    }
-                }
-
-                onReleased: {
-                    isResizing = false
-                }
-            }
-        }
     }
 
     Rectangle {
