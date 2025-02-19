@@ -17,6 +17,7 @@ set(PROJECT_SOURCES
         src/qml.qrc
         src/deskmate.h
         src/deskmate.cpp
+        src/res/QDeskMate.rc
 )
 
 add_executable(QDeskMate

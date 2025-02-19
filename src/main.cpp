@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
 
     // 创建系统托盘图标
     QSystemTrayIcon *trayIcon = new QSystemTrayIcon(&app);
-    trayIcon->setIcon(QIcon(":/res/1.gif"));
+    trayIcon->setIcon(QIcon("://res/deskMate.ico"));
     trayIcon->setToolTip("QDeskMate");
 
     // 创建托盘菜单

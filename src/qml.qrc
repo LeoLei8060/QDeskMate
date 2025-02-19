@@ -3,5 +3,6 @@
         <file>main.qml</file>
         <file>SettingsDialog.qml</file>
         <file>res/1.gif</file>
+        <file>res/deskMate.ico</file>
     </qresource>
 </RCC>
