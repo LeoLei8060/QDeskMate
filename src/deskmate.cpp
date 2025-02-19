@@ -20,6 +20,9 @@ DeskMate::DeskMate(QObject *parent)
     qDebug() << m_isFolderMode << m_currentImagePath;
 
     connect(&m_timer, &QTimer::timeout, this, &DeskMate::nextImage);
+    
+    // 加载任务列表
+    loadTasks();
 }
 
 QString DeskMate::imagePath() const
@@ -196,4 +199,110 @@ void DeskMate::updateImage()
         }
         emit currentImagePathChanged();
     }
+}
+
+QVariantList DeskMate::tasks() const
+{
+    return m_tasks;
+}
+
+QVariantMap DeskMate::getTask(int index) const
+{
+    if (index >= 0 && index < m_tasks.size()) {
+        return m_tasks[index].toMap();
+    }
+    return QVariantMap();
+}
+
+void DeskMate::updateTaskText(int index, const QString &text)
+{
+    if (index >= 0 && index < m_tasks.size()) {
+        QVariantMap task = m_tasks[index].toMap();
+        if (task["text"].toString() != text) {
+            task["text"] = text;
+            m_tasks[index] = task;
+            saveTasks();
+            emit tasksChanged();
+        }
+    }
+}
+
+void DeskMate::updateTaskStatus(int index, bool completed)
+{
+    if (index >= 0 && index < m_tasks.size()) {
+        QVariantMap task = m_tasks[index].toMap();
+        if (task["completed"].toBool() != completed) {
+            task["completed"] = completed;
+            m_tasks[index] = task;
+            saveTasks();
+            emit tasksChanged();
+        }
+    }
+}
+
+void DeskMate::updateTask(int index, const QString &text, bool completed)
+{
+    if (index >= 0 && index < m_tasks.size()) {
+        QVariantMap task = m_tasks[index].toMap();
+        bool changed = false;
+
+        if (task["text"].toString() != text) {
+            task["text"] = text;
+            changed = true;
+        }
+        
+        if (task["completed"].toBool() != completed) {
+            task["completed"] = completed;
+            changed = true;
+        }
+
+        if (changed) {
+            m_tasks[index] = task;
+            saveTasks();
+            emit tasksChanged();
+        }
+    }
+}
+
+void DeskMate::loadTasks()
+{
+    QSettings settings("settings.ini", QSettings::IniFormat);
+    int taskCount = settings.beginReadArray("tasks");
+    m_tasks.clear();
+    
+    // 如果没有保存的任务，创建5个空任务
+    if (taskCount == 0) {
+        for (int i = 0; i < 5; ++i) {
+            QVariantMap task;
+            task["text"] = QString("任务 %1").arg(i + 1);
+            task["completed"] = false;
+            m_tasks.append(task);
+        }
+    } else {
+        // 读取保存的任务
+        for (int i = 0; i < taskCount; ++i) {
+            settings.setArrayIndex(i);
+            QVariantMap task;
+            task["text"] = settings.value("text", QString("任务 %1").arg(i + 1)).toString();
+            task["completed"] = settings.value("completed", false).toBool();
+            m_tasks.append(task);
+        }
+    }
+    settings.endArray();
+    emit tasksChanged();
+}
+
+void DeskMate::saveTasks()
+{
+    QSettings settings("settings.ini", QSettings::IniFormat);
+    settings.beginWriteArray("tasks");
+    
+    for (int i = 0; i < m_tasks.size(); ++i) {
+        settings.setArrayIndex(i);
+        QVariantMap task = m_tasks[i].toMap();
+        settings.setValue("text", task["text"]);
+        settings.setValue("completed", task["completed"]);
+    }
+    
+    settings.endArray();
 }

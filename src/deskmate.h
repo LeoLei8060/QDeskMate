@@ -6,6 +6,8 @@
 #include <QString>
 #include <QStringList>
 #include <QTimer>
+#include <QVariantList>
+#include <QVariantMap>
 
 class DeskMate : public QObject
 {
@@ -16,6 +18,8 @@ class DeskMate : public QObject
     Q_PROPERTY(QString currentImagePath READ currentImagePath NOTIFY currentImagePathChanged)
     Q_PROPERTY(bool isFolderMode READ isFolderMode WRITE setIsFolderMode NOTIFY isFolderModeChanged)
     Q_PROPERTY(int intervalTime READ intervalTime WRITE setIntervalTime NOTIFY intervalTimeChanged)
+    Q_PROPERTY(QVariantList tasks READ tasks NOTIFY tasksChanged)
+    Q_PROPERTY(int taskCount READ taskCount CONSTANT)
 
 public:
     explicit DeskMate(QObject *parent = nullptr);
@@ -37,6 +41,13 @@ public:
     int  intervalTime() const;
     void setIntervalTime(int time);
 
+    QVariantList tasks() const;
+    int taskCount() const { return m_tasks.size(); }
+    Q_INVOKABLE QVariantMap getTask(int index) const;
+    Q_INVOKABLE void updateTaskText(int index, const QString &text);
+    Q_INVOKABLE void updateTaskStatus(int index, bool completed);
+    Q_INVOKABLE void updateTask(int index, const QString &text, bool completed);
+
     void saveSettings();
 
 public slots:
@@ -48,9 +59,12 @@ signals:
     void currentImagePathChanged();
     void isFolderModeChanged();
     void intervalTimeChanged();
+    void tasksChanged();
 
 private:
     void loadImagesFromFolder();
+    void loadTasks();
+    void saveTasks();
 
     QString     m_gifImagePath;
     QString     m_folderImagePath;
@@ -60,6 +74,7 @@ private:
     QStringList m_imageFiles;
     int         m_currentImageIndex;
     QTimer      m_timer;
+    QVariantList m_tasks;
 };
 
 #endif // DESKMATE_H
