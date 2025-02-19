@@ -11,10 +11,11 @@ DeskMate::DeskMate(QObject *parent)
 {
     // 读取配置文件
     QSettings settings("settings.ini", QSettings::IniFormat);
+    m_gifImagePath = settings.value("gifImagePath", "qrc:/res/1.gif").toString();
+    m_folderImagePath = settings.value("folderImagePath", "").toString();
     m_isFolderMode = settings.value("isFolderMode", false).toBool();
-    auto path = settings.value("imagePath", "qrc:/res/1.gif").toString();
     m_intervalTime = settings.value("intervalTime", 1000).toInt();
-    setImagePath(path);
+    setImagePath(m_isFolderMode ? m_folderImagePath : m_gifImagePath);
 
     qDebug() << m_isFolderMode << m_currentImagePath;
 
@@ -23,19 +24,25 @@ DeskMate::DeskMate(QObject *parent)
 
 QString DeskMate::imagePath() const
 {
-    return m_imagePath;
+    return m_isFolderMode ? m_folderImagePath : m_gifImagePath;
 }
 
 void DeskMate::setImagePath(const QString &path)
 {
-    if (m_imagePath != path) {
+    if (m_isFolderMode) {
+        m_folderImagePath = path;
+    } else {
+        m_gifImagePath = path;
+    }
+
+    if (m_currentImagePath != path) {
         qDebug() << "Original path:" << path;
-        m_imagePath = path;
-        m_currentImagePath = m_imagePath;
+        m_currentImagePath = path;
         saveSettings();
         if (m_isFolderMode) {
             loadImagesFromFolder();
         } else {
+            m_timer.stop();
             // 移除可能的 file:/// 前缀
             if (m_currentImagePath.startsWith("file:///")) {
                 m_currentImagePath = m_currentImagePath.mid(8);
@@ -50,6 +57,26 @@ void DeskMate::setImagePath(const QString &path)
         }
         emit imagePathChanged();
     }
+}
+
+QString DeskMate::gifImagePath() const
+{
+    return m_gifImagePath;
+}
+
+void DeskMate::setGifImagePath(const QString &path)
+{
+    m_gifImagePath = path;
+}
+
+QString DeskMate::folderImagePath() const
+{
+    return m_folderImagePath;
+}
+
+void DeskMate::setFolderImagePath(const QString &path)
+{
+    m_folderImagePath = path;
 }
 
 QString DeskMate::currentImagePath() const
@@ -67,13 +94,21 @@ void DeskMate::setIsFolderMode(bool mode)
     if (m_isFolderMode != mode) {
         m_isFolderMode = mode;
         if (mode) {
+            setImagePath(m_folderImagePath);
             loadImagesFromFolder();
         } else {
+            setImagePath(m_gifImagePath);
             // 移除可能的 file:/// 前缀
-            m_currentImagePath = m_imagePath;
+            m_currentImagePath = m_gifImagePath;
             if (m_currentImagePath.startsWith("file:///")) {
                 m_currentImagePath = m_currentImagePath.mid(8);
             }
+            // 仅当路径不是文件系统路径时，添加 qrc:/ 前缀
+            if (!m_currentImagePath.startsWith("qrc:/")
+                && !QDir::isAbsolutePath(m_currentImagePath)) {
+                m_currentImagePath = "qrc:/" + m_currentImagePath;
+            }
+            qDebug() << "Processed path:" << m_currentImagePath;
             emit currentImagePathChanged();
         }
         emit isFolderModeChanged();
@@ -102,61 +137,48 @@ void DeskMate::saveSettings()
 {
     QSettings settings("settings.ini", QSettings::IniFormat);
     settings.setValue("isFolderMode", m_isFolderMode);
-    settings.setValue("imagePath", m_imagePath);
+    settings.setValue("gifImagePath", m_gifImagePath);
+    settings.setValue("folderImagePath", m_folderImagePath);
     settings.setValue("intervalTime", m_intervalTime);
 }
 
 void DeskMate::loadImagesFromFolder()
 {
-    m_imageFiles.clear();
-    m_currentImageIndex = 0;
-    m_timer.stop();
-
-    // 移除可能的 file:/// 前缀
-    QString folderPath = m_imagePath;
-    if (folderPath.startsWith("file:///")) {
-        folderPath = folderPath.mid(8);
-    }
-
-    QDir dir(folderPath);
+    QDir dir(m_folderImagePath);
     if (!dir.exists()) {
-        m_currentImagePath = "";
-        emit currentImagePathChanged();
+        qDebug() << "Folder does not exist:" << m_folderImagePath;
         return;
     }
 
-    QStringList filters;
-    filters << "*.jpg"
-            << "*.jpeg"
-            << "*.png"
-            << "*.gif"
-            << "*.bmp";
-    m_imageFiles = dir.entryList(filters, QDir::Files);
+    QStringList nameFilters;
+    nameFilters << "*.jpg"
+                << "*.jpeg"
+                << "*.png"
+                << "*.gif"
+                << "*.bmp";
+    m_imageFiles = dir.entryList(nameFilters, QDir::Files);
 
-    // 如果找到图片，设置第一张
-    if (!m_imageFiles.isEmpty()) {
-        emit currentImagePathChanged();
-        m_timer.setInterval(m_intervalTime);
-        m_timer.start();
-    } else {
-        emit currentImagePathChanged();
+    if (m_imageFiles.isEmpty()) {
+        qDebug() << "No images found in folder:" << m_folderImagePath;
+        return;
     }
+
+    m_currentImageIndex = 0;
+    m_currentImagePath = dir.filePath(m_imageFiles[m_currentImageIndex]);
+    emit currentImagePathChanged();
+    m_timer.setInterval(m_intervalTime);
+    m_timer.start();
 }
 
 void DeskMate::nextImage()
 {
-    if (!m_isFolderMode || m_imageFiles.isEmpty())
+    if (m_imageFiles.isEmpty()) {
         return;
-
-    m_currentImageIndex = (m_currentImageIndex + 1) % m_imageFiles.size();
-
-    // 移除可能的 file:/// 前缀
-    QString folderPath = m_imagePath;
-    if (folderPath.startsWith("file:///")) {
-        folderPath = folderPath.mid(8);
     }
 
-    m_currentImagePath = QDir(folderPath).filePath(m_imageFiles[m_currentImageIndex]);
+    m_currentImageIndex = (m_currentImageIndex + 1) % m_imageFiles.size();
+    QDir dir(m_folderImagePath);
+    m_currentImagePath = dir.filePath(m_imageFiles[m_currentImageIndex]);
     emit currentImagePathChanged();
 }
 
@@ -165,12 +187,13 @@ void DeskMate::updateImage()
     if (m_isFolderMode) {
         loadImagesFromFolder();
     } else {
-        // 移除可能的 file:/// 前缀
-        m_currentImagePath = m_imagePath;
+        m_currentImagePath = m_gifImagePath;
         if (m_currentImagePath.startsWith("file:///")) {
             m_currentImagePath = m_currentImagePath.mid(8);
         }
+        if (!m_currentImagePath.startsWith("qrc:/") && !QDir::isAbsolutePath(m_currentImagePath)) {
+            m_currentImagePath = "qrc:/" + m_currentImagePath;
+        }
         emit currentImagePathChanged();
-        qDebug() << m_currentImagePath;
     }
 }

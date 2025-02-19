@@ -22,13 +22,8 @@ Window {
     // 初始化临时变量
     onVisibleChanged: {
         if (visible) {
-            if (deskMate.isFolderMode) {
-                tempFolderPath = deskMate.imagePath
-                tempSingleImagePath = ""
-            } else {
-                tempSingleImagePath = deskMate.imagePath
-                tempFolderPath = ""
-            }
+            tempFolderPath = deskMate.folderImagePath
+            tempSingleImagePath = deskMate.gifImagePath
             tempIsFolderMode = deskMate.isFolderMode
             tempIntervalTime = deskMate.intervalTime
         }
@@ -232,12 +227,18 @@ Window {
                     font.pixelSize: 12
                     onClicked: {
                         // 更新设置
-                        deskMate.imagePath = tempIsFolderMode ? tempFolderPath : tempSingleImagePath
-                        deskMate.isFolderMode = tempIsFolderMode
-                        console.log(deskMate.isFolderMode, deskMate.imagePath)
-                        deskMate.intervalTime = tempIntervalTime
-                        deskMate.updateImage() // 通知更新图片
-                        settingsDialog.visible = false
+                        deskMate.isFolderMode = tempIsFolderMode;
+                        if (tempIsFolderMode) {
+                            deskMate.setGifImagePath(tempSingleImagePath)
+                            deskMate.setImagePath(tempFolderPath);
+                        } else {
+                            deskMate.setFolderImagePath(tempFolderPath)
+                            deskMate.setImagePath(tempSingleImagePath);
+                        }
+                        console.log(deskMate.isFolderMode, deskMate.imagePath);
+                        deskMate.intervalTime = tempIntervalTime;
+                        deskMate.updateImage(); // 通知更新图片
+                        settingsDialog.visible = false;
                     }
                 }
             }
